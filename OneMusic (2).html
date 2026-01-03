@@ -1,0 +1,239 @@
+<!-- templates/dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - One Music</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .sidebar {
+            height: calc(100vh - 4rem);
+        }
+        .player-bar {
+            height: 90px;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <!-- Sidebar -->
+    <div class="flex">
+        <div class="sidebar bg-gray-800 w-64 p-6">
+            <div class="flex items-center space-x-3 mb-10">
+                <i class="fas fa-music text-2xl text-purple-500"></i>
+                <h1 class="text-2xl font-bold">One Music</h1>
+            </div>
+            
+            <nav class="space-y-4">
+                <a href="{{ url_for('dashboard') }}" class="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg">
+                    <i class="fas fa-home"></i>
+                    <span>Home</span>
+                </a>
+                <a href="{{ url_for('search') }}" class="flex items-center space-x-3 p-3 hover:bg-gray-700 rounded-lg">
+                    <i class="fas fa-search"></i>
+                    <span>Search</span>
+                </a>
+                <a href="#" class="flex items-center space-x-3 p-3 hover:bg-gray-700 rounded-lg">
+                    <i class="fas fa-book"></i>
+                    <span>Your Library</span>
+                </a>
+                
+                <div class="pt-8">
+                    <h3 class="text-sm uppercase text-gray-400 mb-4">Playlists</h3>
+                    {% for playlist in playlists %}
+                    <a href="{{ url_for('view_playlist', playlist_id=playlist.id) }}" class="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded">
+                        <i class="fas fa-list"></i>
+                        <span>{{ playlist.name }}</span>
+                    </a>
+                    {% endfor %}
+                    <button onclick="createPlaylist()" class="flex items-center space-x-3 p-2 hover:bg-gray-700 rounded w-full text-left">
+                        <i class="fas fa-plus"></i>
+                        <span>Create Playlist</span>
+                    </button>
+                </div>
+                
+                <div class="pt-8">
+                    <a href="{{ url_for('premium') }}" class="block bg-gradient-to-r from-purple-600 to-pink-600 p-4 rounded-lg text-center hover:opacity-90 transition">
+                        <i class="fas fa-crown mb-2"></i>
+                        <div class="font-bold">Upgrade to Premium</div>
+                        <div class="text-sm">Get {{ user.subscription_type|title }}</div>
+                    </a>
+                </div>
+            </nav>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="flex-1 p-8">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-3xl font-bold">Welcome back, {{ user.username }}!</h2>
+                <div class="flex items-center space-x-4">
+                    <div class="bg-gray-800 px-4 py-2 rounded-full">
+                        <i class="fas fa-user mr-2"></i>
+                        {{ user.subscription_type|title }} Plan
+                    </div>
+                    <a href="{{ url_for('logout') }}" class="text-gray-400 hover:text-white">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Top Charts -->
+            <section class="mb-12">
+                <h3 class="text-2xl font-bold mb-6">Top Charts</h3>
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                    {% for track in top_tracks %}
+                    <div class="bg-gray-800 p-4 rounded-xl hover:bg-gray-700 transition group">
+                        <div class="relative mb-4">
+                            <img src="{{ track.album.cover_medium }}" alt="{{ track.title }}" class="w-full rounded-lg">
+                            <button class="absolute bottom-2 right-2 bg-purple-600 p-3 rounded-full opacity-0 group-hover:opacity-100 transition" onclick="playSong('{{ track.id }}')">
+                                <i class="fas fa-play"></i>
+                            </button>
+                        </div>
+                        <h4 class="font-bold truncate">{{ track.title }}</h4>
+                        <p class="text-gray-400 text-sm truncate">{{ track.artist.name }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+            
+            <!-- Recently Played -->
+            <section>
+                <h3 class="text-2xl font-bold mb-6">Recently Played</h3>
+                <div class="bg-gray-800 rounded-xl overflow-hidden">
+                    <table class="w-full">
+                        <thead class="bg-gray-900">
+                            <tr>
+                                <th class="text-left p-4">#</th>
+                                <th class="text-left p-4">Title</th>
+                                <th class="text-left p-4">Album</th>
+                                <th class="text-left p-4">Duration</th>
+                                <th class="text-left p-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for track in top_tracks[:10] %}
+                            <tr class="border-t border-gray-700 hover:bg-gray-700">
+                                <td class="p-4">{{ loop.index }}</td>
+                                <td class="p-4">
+                                    <div class="flex items-center space-x-4">
+                                        <img src="{{ track.album.cover_small }}" class="w-10 h-10">
+                                        <div>
+                                            <div class="font-medium">{{ track.title }}</div>
+                                            <div class="text-sm text-gray-400">{{ track.artist.name }}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="p-4">{{ track.album.title }}</td>
+                                <td class="p-4">{{ track.duration // 60 }}:{{ '%02d' % (track.duration % 60) }}</td>
+                                <td class="p-4">
+                                    <button class="text-purple-400 hover:text-purple-300 mr-3" onclick="playSong('{{ track.id }}')">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                    <button class="text-gray-400 hover:text-white" onclick="toggleFavorite('{{ track.id }}')">
+                                        <i class="far fa-heart"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </div>
+    
+    <!-- Audio Player -->
+    <div class="player-bar bg-gray-900 border-t border-gray-800 px-6 py-4">
+        <div class="flex items-center justify-between h-full">
+            <div class="flex items-center space-x-4 w-1/4">
+                <img src="https://e-cdns-images.dzcdn.net/images/cover/cc3f80.../60x60-000000-80-0-0.jpg" class="w-14 h-14 rounded">
+                <div>
+                    <div class="font-medium">Good 4 U</div>
+                    <div class="text-sm text-gray-400">Olivia Rodrigo</div>
+                </div>
+                <button class="text-gray-400 hover:text-white">
+                    <i class="far fa-heart"></i>
+                </button>
+            </div>
+            
+            <div class="flex-1 max-w-2xl">
+                <div class="flex items-center justify-center space-x-6 mb-2">
+                    <button class="text-gray-400 hover:text-white">
+                        <i class="fas fa-random"></i>
+                    </button>
+                    <button class="text-gray-400 hover:text-white">
+                        <i class="fas fa-step-backward"></i>
+                    </button>
+                    <button class="bg-white text-black p-3 rounded-full hover:scale-105">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button class="text-gray-400 hover:text-white">
+                        <i class="fas fa-step-forward"></i>
+                    </button>
+                    <button class="text-gray-400 hover:text-white">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-400">0:00</span>
+                    <div class="flex-1 bg-gray-700 rounded-full h-1">
+                        <div class="bg-purple-500 h-1 rounded-full w-1/3"></div>
+                    </div>
+                    <span class="text-sm text-gray-400">3:15</span>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-4 w-1/4 justify-end">
+                <button class="text-gray-400 hover:text-white">
+                    <i class="fas fa-list"></i>
+                </button>
+                <button class="text-gray-400 hover:text-white">
+                    <i class="fas fa-volume-up"></i>
+                </button>
+                <div class="w-24 bg-gray-700 rounded-full h-1">
+                    <div class="bg-white h-1 rounded-full w-3/4"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function createPlaylist() {
+            const name = prompt('Enter playlist name:');
+            if (name) {
+                fetch('/playlist/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        'name': name,
+                        'description': ''
+                    })
+                }).then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    }
+                });
+            }
+        }
+        
+        function playSong(songId) {
+            window.open(`/play/${songId}`, '_blank');
+        }
+        
+        async function toggleFavorite(songId) {
+            const response = await fetch(`/favorite/${songId}`, {
+                method: 'POST'
+            });
+            return await response.json();
+        }
+    </script>
+</body>
+</html>

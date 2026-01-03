@@ -1,0 +1,159 @@
+<!-- templates/premium.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Premium - One Music</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div class="container mx-auto px-4 py-16 max-w-6xl">
+        <div class="text-center mb-12">
+            <h1 class="text-5xl font-bold mb-6">Upgrade Your Experience</h1>
+            <p class="text-xl text-gray-300">Choose the perfect plan for your music journey</p>
+        </div>
+        
+        <!-- Current Plan -->
+        <div class="bg-gradient-to-r from-purple-800 to-pink-800 rounded-2xl p-8 mb-12">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h3 class="text-2xl font-bold mb-2">Your Current Plan</h3>
+                    <p class="text-gray-200">{{ current_user.subscription_type|title }} Plan</p>
+                    {% if current_user.subscription_expiry %}
+                    <p class="text-sm text-gray-300">Renews on {{ current_user.subscription_expiry.strftime('%B %d, %Y') }}</p>
+                    {% endif %}
+                </div>
+                <div class="text-right">
+                    <div class="text-3xl font-bold mb-2">
+                        {% if current_user.subscription_type == 'free' %}
+                        $0<span class="text-lg">/month</span>
+                        {% else %}
+                        ${{ plans[current_user.subscription_type].price }}<span class="text-lg">/month</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-sm text-gray-300">
+                        {% if current_user.subscription_type == 'free' %}
+                        Limited features
+                        {% else %}
+                        Full access
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Plans Comparison -->
+        <div class="grid md:grid-cols-3 gap-8 mb-16">
+            {% for plan_id, plan in plans.items() %}
+            <div class="bg-gray-800 rounded-2xl p-8 {% if plan_id == current_user.subscription_type %}border-2 border-purple-500{% endif %}">
+                {% if plan_id == current_user.subscription_type %}
+                <div class="bg-purple-600 text-white text-sm font-bold px-4 py-2 rounded-full inline-block mb-4">
+                    CURRENT PLAN
+                </div>
+                {% endif %}
+                
+                <h3 class="text-2xl font-bold mb-4">{{ plan.name }}</h3>
+                <div class="text-4xl font-bold mb-2">${{ plan.price }}<span class="text-lg">/month</span></div>
+                <p class="text-gray-400 mb-8">Billed monthly</p>
+                
+                <ul class="space-y-4 mb-8">
+                    {% for feature in plan.features %}
+                    <li class="flex items-center">
+                        <i class="fas fa-check text-green-400 mr-3"></i>
+                        {{ feature }}
+                    </li>
+                    {% endfor %}
+                    <li class="flex items-center">
+                        <i class="fas fa-check text-green-400 mr-3"></i>
+                        24/7 Customer Support
+                    </li>
+                </ul>
+                
+                {% if plan_id == current_user.subscription_type %}
+                <button class="w-full bg-gray-700 text-white py-3 rounded-full font-semibold cursor-not-allowed">
+                    Current Plan
+                </button>
+                {% else %}
+                <button onclick="subscribeToPlan('{{ plan_id }}')" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-full font-semibold transition">
+                    Upgrade Now
+                </button>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Feature Details -->
+        <div class="bg-gray-800 rounded-2xl p-8">
+            <h3 class="text-3xl font-bold mb-8 text-center">All Premium Plans Include</h3>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="text-center">
+                    <div class="bg-purple-900 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-music text-2xl"></i>
+                    </div>
+                    <h4 class="font-bold text-xl mb-2">Ad-Free Music</h4>
+                    <p class="text-gray-400">Enjoy uninterrupted music without any advertisements</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="bg-purple-900 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-download text-2xl"></i>
+                    </div>
+                    <h4 class="font-bold text-xl mb-2">Offline Downloads</h4>
+                    <p class="text-gray-400">Download songs and listen offline anywhere</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="bg-purple-900 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-headphones-alt text-2xl"></i>
+                    </div>
+                    <h4 class="font-bold text-xl mb-2">High Quality Audio</h4>
+                    <p class="text-gray-400">Experience music in crystal clear 320kbps quality</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="bg-purple-900 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-infinity text-2xl"></i>
+                    </div>
+                    <h4 class="font-bold text-xl mb-2">Unlimited Skips</h4>
+                    <p class="text-gray-400">Skip as many songs as you want, anytime</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const stripe = Stripe('{{ stripe_publishable_key }}');
+        
+        async function subscribeToPlan(planType) {
+            try {
+                const response = await fetch('/create-checkout-session/' + planType, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                
+                const session = await response.json();
+                
+                if (session.error) {
+                    alert(session.error);
+                    return;
+                }
+                
+                const result = await stripe.redirectToCheckout({
+                    sessionId: session.id
+                });
+                
+                if (result.error) {
+                    alert(result.error.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
